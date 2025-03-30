@@ -11,12 +11,36 @@ on:
 
 jobs:
   calculate-tag-and-release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
     steps:
-      - run: |
-          echo "using pipe char `|` allows us to write multiline script"
-          echo "this should probably checkout the repo first, and install some tool to calculate the version automatically"
-          echo "let's use `gitverion` provided by `gittools` to calculate it"
-          echo "lastly let's create the git tag, push new tag and create a release"
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Ensure full git history is fetched
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v3.1.11
+        with:
+          versionSpec: "6.0.5"
+      - name: Determine Version
+        id: version_step # step id used as reference for output values
+        uses: gittools/actions/gitversion/execute@v3.1.11
+      - name: Create new tag
+        run: |
+          new_tag=v${{ steps.version_step.outputs.FullSemVer }}
+          git tag $new_tag
+          git push origin $new_tag
+      - name: Create GitHub release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        with:
+          tag_name: ${{ steps.version_step.outputs.FullSemVer }}
+          release_name: Release ${{ steps.version_step.outputs.FullSemVer }}
+          body: "Automated release based on the latest commit."
+          draft: false
+          prerelease: false
   Run-Unit-Tests:
     runs-on: ubuntu-latest
     steps:
