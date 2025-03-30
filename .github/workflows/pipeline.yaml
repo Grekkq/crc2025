@@ -1,7 +1,22 @@
 name: GitHub Actions CRC Demo
 run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
-on: [push]
+on:
+  # this will ignore all pushes to tags, but will trigger on every new commit
+  # https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#onpushbranchestagsbranches-ignoretags-ignore
+  push:
+    tags-ignore:
+      - '**'
+    branches:
+      - "**"
+
 jobs:
+  calculate-tag-and-release:
+    steps:
+      - run: |
+          echo "using pipe char `|` allows us to write multiline script"
+          echo "this should probably checkout the repo first, and install some tool to calculate the version automatically"
+          echo "let's use `gitverion` provided by `gittools` to calculate it"
+          echo "lastly let's create the git tag, push new tag and create a release"
   Run-Unit-Tests:
     runs-on: ubuntu-latest
     steps:
