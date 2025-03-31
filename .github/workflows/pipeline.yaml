@@ -10,6 +10,7 @@ on:
       - "**"
 
 jobs:
+  # todo split this to only publish the new version if the tests pass
   calculate-tag-and-release:
     permissions:
       contents: write
