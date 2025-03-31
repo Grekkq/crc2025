@@ -1,5 +1,5 @@
 name: GitHub Actions CRC Demo
-run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
+run-name: Publish new version of "${{ github.ref_name }} by @${{ github.actor }}"
 on:
   # this will ignore all pushes to tags, but will trigger on every new commit
   # https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#onpushbranchestagsbranches-ignoretags-ignore
@@ -10,11 +10,10 @@ on:
       - "**"
 
 jobs:
-  # todo split this to only publish the new version if the tests pass
-  calculate-tag-and-release:
-    permissions:
-      contents: write
+  calculate-tag:
     runs-on: ubuntu-latest
+    outputs:
+      full_sem_ver: ${{ steps.export_version.outputs.full_sem_ver }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -27,21 +26,9 @@ jobs:
       - name: Determine Version
         id: version_step # step id used as reference for output values
         uses: gittools/actions/gitversion/execute@v3.1.11
-      - name: Create new tag
-        run: |
-          new_tag=v${{ steps.version_step.outputs.FullSemVer }}
-          git tag $new_tag
-          git push origin $new_tag
-      - name: Create GitHub release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
-        with:
-          tag_name: ${{ steps.version_step.outputs.FullSemVer }}
-          release_name: Release ${{ steps.version_step.outputs.FullSemVer }}
-          body: "Automated release based on the latest commit."
-          draft: false
-          prerelease: false
+      - name: Export calculate version as output
+        id: export_version
+        run: echo "full_sem_ver=v${{ steps.version_step.outputs.FullSemVer }}" >> "$GITHUB_OUTPUT"
   Run-Unit-Tests:
     runs-on: ubuntu-latest
     steps:
@@ -57,3 +44,30 @@ jobs:
       - run: python -m pip install -r requirements.txt
       # figure out how to run tests to see if the server works
       - run: python -m unittest -v
+  publish-new-release:
+    permissions:
+      contents: write
+    needs: ["calculate-tag", "Run-Unit-Tests"]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Create new tag
+        env:
+          OUTPUT1: ${{needs.calculate-tag.outputs.full_sem_ver}}
+        run: |
+          echo "${{ needs.calculate-tag.outputs.full_sem_ver }}"
+          echo "$OUTPUT1"
+          new_tag=v${{ needs.calculate-tag.outputs.full_sem_ver }}
+          git tag $new_tag
+          git push origin $new_tag
+      - name: Create GitHub release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        with:
+          tag_name: ${{ needs.calculate-tag.outputs.full_sem_ver }}
+          release_name: Release ${{ needs.calculate-tag.outputs.full_sem_ver }}
+          body: "Automated release based on the latest commit."
+          draft: false
+          prerelease: false      
